@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UK Wealth Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+  <style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0e14; --surface: #12161f; --surface2: #1a2030; --border: #232a3a;
+    --accent: #c8a96e; --green: #52c98b; --red: #e05c5c; --amber: #e8a23a;
+    --text: #e8ecf4; --muted: #6a7590;
+    --isa: #5b8dee; --pension: #c8a96e; --other: #52c98b; --total: #e8ecf4;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; }
+  .app { max-width: 1440px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
+  .header-left h1 { font-family: 'Fraunces', serif; font-weight: 300; font-size: 2.1rem; letter-spacing: -0.02em; }
+  .header-left h1 span { color: var(--accent); font-style: italic; }
+  .header-left p { color: var(--muted); font-size: 0.7rem; margin-top: 0.3rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .fire-badge { background: var(--surface2); border: 1px solid var(--border); padding: 0.6rem 1rem; font-size: 0.7rem; color: var(--muted); text-align: right; }
+  .fire-badge strong { display: block; font-family: 'Fraunces', serif; font-size: 1.5rem; color: var(--green); font-weight: 600; }
+  .fire-badge.warning strong { color: var(--red); }
+  .main { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; }
+  @media (max-width: 960px) { .main { grid-template-columns: 1fr; } }
+  .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+  .panel { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; }
+  .panel-title { font-size: 0.63rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .panel-title::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--accent); flex-shrink: 0; }
+  .field { margin-bottom: 0.85rem; }
+  .field label { display: block; font-size: 0.63rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+  .field input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.45rem 0.7rem; font-family: 'DM Mono', monospace; font-size: 0.83rem; outline: none; transition: border-color 0.15s; }
+  .field input:focus { border-color: var(--accent); }
+  .field input[type="range"] { padding: 0; height: 4px; accent-color: var(--accent); cursor: pointer; }
+  .range-row { display: flex; align-items: center; gap: 0.5rem; }
+  .range-val { font-size: 0.83rem; color: var(--accent); min-width: 3.5rem; text-align: right; flex-shrink: 0; }
+  .alloc-bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; margin-bottom: 1rem; }
+  .alloc-seg { transition: width 0.3s; }
+  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.75rem; }
+  .preset-btn { background: var(--bg); border: 1px solid var(--border); color: var(--muted); padding: 0.45rem 0.5rem; font-family: 'DM Mono', monospace; font-size: 0.63rem; letter-spacing: 0.04em; cursor: pointer; text-align: left; transition: all 0.15s; }
+  .preset-btn:hover, .preset-btn.active { border-color: var(--accent); color: var(--accent); background: #1a1608; }
+  .preset-desc { font-size: 0.63rem; color: var(--muted); line-height: 1.6; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+  @media (max-width: 900px) { .stats { grid-template-columns: repeat(3,1fr); } }
+  @media (max-width: 600px) { .stats { grid-template-columns: repeat(2,1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--border); padding: 0.9rem; }
+  .stat.surplus-pos { border-color: #1a3a28; }
+  .stat.surplus-neg { border-color: #3a1a1a; }
+  .stat-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.35rem; }
+  .stat-val { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 600; line-height: 1; }
+  .stat-sub { font-size: 0.62rem; color: var(--muted); margin-top: 0.3rem; }
+  .chart-wrap { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; margin-bottom: 1rem; }
+  .chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem; }
+  .view-tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+  .tab { background: none; border: 1px solid var(--border); color: var(--muted); padding: 0.28rem 0.65rem; font-family: 'DM Mono', monospace; font-size: 0.63rem; cursor: pointer; transition: all 0.15s; }
+  .tab.active { border-color: var(--accent); color: var(--accent); }
+  .custom-tooltip { background: var(--surface2); border: 1px solid var(--border); padding: 0.7rem 0.9rem; font-size: 0.7rem; }
+  .custom-tooltip .tt-label { color: var(--muted); margin-bottom: 0.45rem; letter-spacing: 0.06em; }
+  .custom-tooltip .tt-row { display: flex; justify-content: space-between; gap: 1.5rem; margin-bottom: 0.2rem; }
+  .toggle-row { display: flex; align-items: center; gap: 0.75rem; font-size: 0.7rem; color: var(--muted); }
+  .toggle { position: relative; width: 32px; height: 18px; cursor: pointer; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--border); transition: 0.2s; border-radius: 18px; }
+  .toggle-slider::before { content: ''; position: absolute; height: 12px; width: 12px; left: 3px; bottom: 3px; background: var(--muted); transition: 0.2s; border-radius: 50%; }
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(14px); background: var(--bg); }
+  .uk-note { font-size: 0.63rem; color: var(--muted); background: var(--surface2); border-left: 2px solid var(--accent); padding: 0.55rem 0.7rem; line-height: 1.65; }
+  .uk-note strong { color: var(--accent); }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 0.7rem 0; }
+  .data-source { font-size: 0.58rem; color: var(--muted); text-align: right; margin-top: 0.4rem; }
+  .data-source span { color: var(--accent); }
+  .tax-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .tax-card { background: var(--bg); border: 1px solid var(--border); padding: 0.8rem; }
+  .tax-card-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+  .tax-card-val { font-family: 'Fraunces', serif; font-size: 1.2rem; font-weight: 600; }
+  .tax-card-sub { font-size: 0.62rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.5; }
+  .tip-card { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--green); padding: 0.7rem 0.9rem; }
+  .tip-card.amber { border-left-color: var(--amber); }
+  .tip-card.red { border-left-color: var(--red); }
+  .tip-title { font-size: 0.63rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+  .tip-card.amber .tip-title { color: var(--amber); }
+  .tip-card.red .tip-title { color: var(--red); }
+  .tip-text { font-size: 0.68rem; color: var(--muted); line-height: 1.65; }
+  .col-isa { color: var(--isa); } .col-pension { color: var(--pension); }
+  .col-other { color: var(--other); } .col-green { color: var(--green); }
+  .col-red { color: var(--red); } .col-amber { color: var(--amber); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+  th { padding: 0.45rem 0.65rem; font-weight: 400; letter-spacing: 0.06em; font-size: 0.6rem; text-transform: uppercase; color: var(--muted); text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 0.45rem 0.65rem; border-bottom: 1px solid var(--border); }
+  .tips-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+  /* Living costs */
+  .cost-row { display: grid; grid-template-columns: 1fr 90px; gap: 0.5rem; align-items: center; margin-bottom: 0.55rem; }
+  .cost-label { font-size: 0.65rem; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; }
+  .cost-icon { font-size: 0.9rem; line-height: 1; }
+  .cost-total-row { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-top: 1px solid var(--border); margin-top: 0.4rem; }
+  .cost-total-label { font-size: 0.63rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .cost-total-val { font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 600; }
+  .cashflow-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 0.75rem 0 0.5rem; }
+  .surplus-label { font-size: 0.63rem; display: flex; justify-content: space-between; color: var(--muted); }
+  .retire-cost-toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem; color: var(--muted); margin-bottom: 0.75rem; cursor: pointer; }
+  .optimise-btn-wrap { padding: 0 0; }
+  .optimise-btn { width: 100%; background: linear-gradient(135deg, #1a1608 0%, #2a2010 100%); border: 1px solid var(--accent); color: var(--accent); padding: 0.75rem 1rem; font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.6rem; transition: all 0.2s; position: relative; overflow: hidden; }
+  .optimise-btn:hover { background: linear-gradient(135deg, #2a2010 0%, #3a2c14 100%); box-shadow: 0 0 20px rgba(200,169,110,0.15); }
+  .optimise-btn:active { transform: scale(0.99); }
+  .optimise-btn .btn-icon { font-size: 1rem; }
+  .optimise-applied { background: var(--surface2); border: 1px solid #1a3a28; border-left: 3px solid var(--green); padding: 0.65rem 0.85rem; font-size: 0.65rem; color: var(--muted); line-height: 1.6; }
+  .optimise-applied strong { color: var(--green); display: block; margin-bottom: 0.25rem; font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Dependencies loaded in strict order -->
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.9.0/umd/Recharts.js"></script>
+
+  <script>
+  // ── Transpile JSX via a minimal inline transform ──────────────────────────
+  // We avoid Babel standalone (slow, warning) by pre-transforming JSX to
+  // React.createElement calls ourselves via a lightweight regex approach.
+  // Instead, we embed the already-transpiled logic directly as plain JS.
+  </script>
+
+  <!-- Babel standalone ONLY for JSX transpilation, suppressing prod warning -->
+  <script src="https://unpkg.com/@babel/standalone@7.23.2/babel.min.js"></script>
+  <script>
+    // Suppress the in-browser Babel warning
+    const _warn = console.warn.bind(console);
+    console.warn = (...args) => {
+      if (typeof args[0] === 'string' && args[0].includes('Babel')) return;
+      _warn(...args);
+    };
+  </script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useMemo } = React;
+    const {
+      LineChart, Line, AreaChart, Area,
+      XAxis, YAxis, CartesianGrid,
+      Tooltip, Legend, ResponsiveContainer, ReferenceLine
+    } = Recharts;
+
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+// styles in <style> tag
+
+// ─── UK Tax Constants 2024/25 ─────────────────────────────────────────────────
+const TAX = {
+  personalAllowance: 12570,
+  basicRateLimit: 50270,
+  higherRateLimit: 125140,
+  basicRate: 0.20, higherRate: 0.40, additionalRate: 0.45,
+  niPrimary1: 12570, niPrimary2: 50270,
+  niRate1: 0.08, niRate2: 0.02,
+  isaAllowance: 20000, pensionAllowance: 60000,
+  statePensionAnnual: 221.20 * 52,
+};
+
+function calcIncomeTax(grossIncome) {
+  if (grossIncome <= 0) return { tax: 0, ni: 0, band: "No Income" };
+  const pa = grossIncome > 100000
+    ? Math.max(0, TAX.personalAllowance - Math.floor((grossIncome - 100000) / 2))
+    : TAX.personalAllowance;
+  const taxable = Math.max(0, grossIncome - pa);
+  const basicBand = Math.max(0, TAX.basicRateLimit - pa);
+  let tax = Math.min(taxable, basicBand) * TAX.basicRate;
+  if (grossIncome > TAX.basicRateLimit)
+    tax += Math.min(grossIncome - TAX.basicRateLimit, TAX.higherRateLimit - TAX.basicRateLimit) * TAX.higherRate;
+  if (grossIncome > TAX.higherRateLimit)
+    tax += (grossIncome - TAX.higherRateLimit) * TAX.additionalRate;
+  let ni = 0;
+  if (grossIncome > TAX.niPrimary1)
+    ni += Math.min(grossIncome - TAX.niPrimary1, TAX.niPrimary2 - TAX.niPrimary1) * TAX.niRate1;
+  if (grossIncome > TAX.niPrimary2)
+    ni += (grossIncome - TAX.niPrimary2) * TAX.niRate2;
+  const band = grossIncome <= TAX.personalAllowance ? "Personal Allowance"
+    : grossIncome <= TAX.basicRateLimit ? "Basic Rate (20%)"
+    : grossIncome <= TAX.higherRateLimit ? "Higher Rate (40%)"
+    : "Additional Rate (45%)";
+  return { tax: Math.round(tax), ni: Math.round(ni), band };
+}
+
+function calcPensionRelief(monthlyContrib, grossIncome, salarySacrifice) {
+  const annualContrib = monthlyContrib * 12;
+  const marginalRate = grossIncome > TAX.basicRateLimit ? 0.40 : grossIncome > TAX.personalAllowance ? 0.20 : 0;
+  if (salarySacrifice) {
+    const niSaving = grossIncome > TAX.niPrimary1
+      ? Math.min(annualContrib, Math.max(0, TAX.niPrimary2 - grossIncome)) * TAX.niRate1
+        + (grossIncome > TAX.niPrimary2 ? annualContrib * TAX.niRate2 : 0)
+      : 0;
+    const relief = annualContrib * marginalRate + niSaving;
+    return { relief: Math.round(relief), effectiveCost: Math.round(annualContrib - relief) };
+  }
+  const relief = annualContrib * marginalRate;
+  return { relief: Math.round(relief), effectiveCost: Math.round(annualContrib - relief) };
+}
+
+// ─── Portfolio Presets ────────────────────────────────────────────────────────
+const PRESETS = {
+  conservative: { name: "Conservative", desc: "70% bonds, 30% global equities.", returns: { isa: 4.5, pension: 4.0, other: 3.5 }, emoji: "🛡️" },
+  balanced:     { name: "Balanced",     desc: "60% equities, 40% bonds.",         returns: { isa: 6.5, pension: 6.0, other: 5.0 }, emoji: "⚖️" },
+  growth:       { name: "Growth",       desc: "90% global equities, 10% bonds.",  returns: { isa: 8.5, pension: 8.0, other: 7.0 }, emoji: "📈" },
+  buffett:      { name: "Buffett",      desc: "90% S&P 500, 10% short gilts.",    returns: { isa: 9.0, pension: 8.5, other: 7.5 }, emoji: "🏦" },
+  vanguard_ls:  { name: "Vanguard LS80",desc: "80% global equities, 20% bonds.", returns: { isa: 7.5, pension: 7.0, other: 6.5 }, emoji: "🌍" },
+  custom:       { name: "Custom",       desc: "Set your own expected returns.",   returns: { isa: 7.0, pension: 6.5, other: 5.0 }, emoji: "⚙️" },
+};
+
+// ─── Living Cost Categories ───────────────────────────────────────────────────
+const COST_CATS = [
+  { key: "housing",     label: "Housing (rent/mortgage)",  icon: "🏠", default: 1500 },
+  { key: "food",        label: "Food & groceries",         icon: "🛒", default: 400  },
+  { key: "transport",   label: "Transport",                icon: "🚗", default: 300  },
+  { key: "utilities",   label: "Utilities & bills",        icon: "💡", default: 200  },
+  { key: "healthcare",  label: "Healthcare",               icon: "🏥", default: 80   },
+  { key: "childcare",   label: "Childcare / education",    icon: "👶", default: 0    },
+  { key: "leisure",     label: "Leisure & dining out",     icon: "🎭", default: 300  },
+  { key: "holidays",    label: "Holidays & travel",        icon: "✈️", default: 200  },
+  { key: "subscriptions",label: "Subscriptions & misc",   icon: "📱", default: 100  },
+  { key: "other",       label: "Other",                    icon: "📦", default: 150  },
+];
+
+const fmt = (n) => {
+  if (n == null || isNaN(n)) return "£0";
+  const abs = Math.abs(n); const sign = n < 0 ? "-" : "";
+  if (abs >= 1e6) return `${sign}£${(abs / 1e6).toFixed(2)}m`;
+  if (abs >= 1e3) return `${sign}£${(abs / 1e3).toFixed(0)}k`;
+  return `${sign}£${Math.round(abs).toLocaleString()}`;
+};
+const pct = (n) => `${Number(n).toFixed(1)}%`;
+
+// ─── Projection Engine ────────────────────────────────────────────────────────
+function generateProjection(p, costs, adjustForInflation) {
+  const years = (p.retirementAge - p.currentAge) + 25;
+  const data = [];
+  let isa = p.isaBalance, pension = p.pensionBalance, other = p.otherBalance;
+  const inflRate = adjustForInflation ? p.inflation / 100 : 0;
+  const empMatch = p.pensionContrib * (p.employerMatch / 100);
+  const monthlyLiving = Object.values(costs).reduce((a, b) => a + b, 0);
+  const retireMonthlyLiving = monthlyLiving * (p.retireCostRatio / 100);
+
+  for (let y = 0; y <= years; y++) {
+    const age = p.currentAge + y;
+    const inRetirement = age >= p.retirementAge;
+    const inflFactor = Math.pow(1 + inflRate, y);
+    const statePension = age >= 66 ? TAX.statePensionAnnual : 0;
+    const portfolioTotal = isa + pension + other;
+    const annualDraw = inRetirement ? portfolioTotal * 0.04 : 0;
+    const pensionDraw = inRetirement ? annualDraw * 0.5 : 0;
+    const retirementGross = pensionDraw + statePension;
+    const { tax: retTax } = calcIncomeTax(retirementGross);
+    const netRetirementIncome = annualDraw + statePension - retTax;
+    const annualLivingCosts = inRetirement ? retireMonthlyLiving * 12 : monthlyLiving * 12;
+    const retirementSurplus = inRetirement ? netRetirementIncome - annualLivingCosts : null;
+
+    data.push({
+      age,
+      year: new Date().getFullYear() + y,
+      isa:             Math.round(isa / inflFactor),
+      pension:         Math.round(pension / inflFactor),
+      other:           Math.round(other / inflFactor),
+      total:           Math.round((isa + pension + other) / inflFactor),
+      annualDraw:      Math.round(annualDraw / inflFactor),
+      taxInRetirement: Math.round(retTax),
+      netAnnualIncome: Math.round(netRetirementIncome / inflFactor),
+      livingCosts:     Math.round(annualLivingCosts / inflFactor),
+      surplus:         retirementSurplus !== null ? Math.round(retirementSurplus / inflFactor) : null,
+    });
+
+    if (!inRetirement) {
+      isa     = isa     * (1 + p.isaReturn / 100)     + p.isaContrib * 12;
+      pension = pension * (1 + p.pensionReturn / 100) + (p.pensionContrib + empMatch) * 12;
+      other   = other   * (1 + p.otherReturn / 100)   + p.otherContrib * 12;
+    } else {
+      const draw = annualDraw / 12;
+      isa     = Math.max(0, isa     * (1 + p.isaReturn / 100)     - draw * 6);
+      pension = Math.max(0, pension * (1 + p.pensionReturn / 100) - draw * 6);
+      other   = Math.max(0, other   * (1 + p.otherReturn / 100)   - draw * 2);
+    }
+  }
+  return data;
+}
+
+// ─── Tax Tips ─────────────────────────────────────────────────────────────────
+function getTaxTips(p, monthlySurplus) {
+  const gross = p.grossSalary;
+  const { tax, ni, band } = calcIncomeTax(gross);
+  const annualISA = p.isaContrib * 12;
+  const annualPension = p.pensionContrib * 12;
+  const tips = [];
+
+  if (monthlySurplus < 0) {
+    tips.push({ type: "red", title: "🚨 Monthly Cash Flow Deficit", text: `Your take-home (${fmt((gross - tax - ni) / 12)}/mo) minus living costs and contributions leaves a deficit of ${fmt(Math.abs(monthlySurplus))}/mo. Reduce spending or contributions to avoid going into debt.` });
+  } else if (monthlySurplus < 200) {
+    tips.push({ type: "amber", title: "⚠️ Thin Monthly Buffer", text: `You have only ${fmt(monthlySurplus)}/mo left after costs and contributions. Consider building a 3–6 month emergency fund before increasing investments.` });
+  }
+  // ── Pension tip: band-specific, mutually exclusive ──
+  if (gross > 125140) {
+    // Additional rate: suggest bringing income towards £100k to restore Personal Allowance
+    const toRestore = Math.min(gross - 100000, TAX.pensionAllowance);
+    const monthlySugg = Math.min(Math.round(toRestore / 12), Math.round(TAX.pensionAllowance / 12));
+    const savingSlice1 = Math.min(gross - 125140, gross - 100000) * 0.45;
+    const savingSlice2 = Math.min(25140, Math.max(0, gross - 100000 - (gross - 125140))) * 0.40;
+    const totalSaving = Math.round(savingSlice1 + savingSlice2);
+    tips.push({ type: "red", title: "🚨 Additional Rate (45%) — Pension is Priority", text: `At £${gross.toLocaleString()} you pay 45% on income above £125,140. Your most valuable move is to salary sacrifice enough to bring taxable income down to £100k, fully restoring your Personal Allowance. This means contributing ~${fmt(monthlySugg)}/mo more to pension (within the £60k/yr limit), saving up to ~${fmt(toRestore * 0.45)} in tax.` });
+  } else if (gross > 100000) {
+    // 60% taper trap: £100k–£125,140
+    const toEscape = gross - 100000;
+    const monthlySugg = Math.min(Math.round(toEscape / 12), Math.round(TAX.pensionAllowance / 12));
+    const saving = Math.round(Math.min(toEscape, 25140) * 0.60);
+    tips.push({ type: "red", title: "🚨 £100k–£125k: Effective 60% Tax Trap", text: `Between £100k and £125,140 your marginal rate is effectively 60% — every extra £1 earned withdraws 50p of Personal Allowance. Salary sacrifice ${fmt(monthlySugg)}/mo more into your pension to bring gross pay back to £100k, restoring your full PA and saving ~${fmt(saving)}.` });
+  } else if (gross > TAX.basicRateLimit) {
+    // Standard higher rate: practical suggestion — not "drop to basic rate", just gain 40% relief
+    const higherSlice = gross - TAX.basicRateLimit;
+    const headroom = Math.max(0, TAX.pensionAllowance - annualPension);
+    const suggestExtra = Math.min(Math.round(higherSlice * 0.4 / 12), Math.round(headroom / 12), 1000);
+    if (suggestExtra > 50) {
+      tips.push({ type: "green", title: "💡 Higher Rate (40%) — Boost Pension for Relief", text: `You pay 40% tax on the ${fmt(higherSlice)} above the basic rate threshold. Each £1 contributed to pension costs you just 60p after relief. Adding ${fmt(suggestExtra)}/mo saves ~${fmt(suggestExtra * 12 * 0.40)}/yr in tax — and you still have ${fmt(Math.round(headroom / 12) - suggestExtra)}/mo of pension headroom remaining.` });
+    }
+  }
+  if (annualISA < TAX.isaAllowance && annualISA < 10000 && monthlySurplus > 0) {
+    tips.push({ type: "amber", title: "📦 Under-using ISA Allowance", text: `You're using ${fmt(annualISA)}/yr of your £20k ISA allowance. With a positive cash surplus, consider redirecting ${fmt(Math.min(monthlySurplus, (TAX.isaAllowance - annualISA) / 12))}/mo into your ISA for tax-free growth.` });
+  }
+  if (annualISA > TAX.isaAllowance) {
+    tips.push({ type: "red", title: "⚠️ ISA Limit Exceeded", text: `ISA contributions of ${fmt(annualISA)}/yr exceed the £20,000 limit. Redirect excess to pension or GIA.` });
+  }
+  if (annualPension > TAX.pensionAllowance) {
+    tips.push({ type: "red", title: "⚠️ Pension Allowance Exceeded", text: `Pension contributions of ${fmt(annualPension)}/yr exceed the £60,000 limit. Excess is taxed at your marginal rate.` });
+  }
+  if (p.otherBalance > 30000 && annualISA < TAX.isaAllowance) {
+    tips.push({ type: "amber", title: "📊 GIA: Bed & ISA Strategy", text: `Hold ${fmt(p.otherBalance)} in a GIA? Each April, sell up to your £3,000 CGT allowance and repurchase inside your ISA to gradually shelter gains.` });
+  }
+  const { relief: ssRelief } = calcPensionRelief(p.pensionContrib, gross, true);
+  const { relief: rasRelief } = calcPensionRelief(p.pensionContrib, gross, false);
+  if (!p.salarySacrifice && ssRelief - rasRelief > 200) {
+    tips.push({ type: "green", title: "💰 Switch to Salary Sacrifice", text: `Switching your pension scheme would save an extra ${fmt(ssRelief - rasRelief)}/yr by eliminating NI on contributions.` });
+  }
+  return { tax, ni, band, tips };
+}
+
+function getOptimalAllocation(p, availableBudget) {
+  const gross = p.grossSalary;
+  const { tax, ni } = calcIncomeTax(gross);
+  const netMonthly = (gross - tax - ni) / 12;
+  const budget = availableBudget != null ? Math.max(0, availableBudget) : Math.max(0, netMonthly);
+  const isaMax = Math.round(TAX.isaAllowance / 12);
+  const pensionMax = Math.round(TAX.pensionAllowance / 12);
+  let pensionRec, isaRec, otherRec, rationale;
+  if (gross > 100000) {
+    const paRecovery = Math.min(Math.round((gross - 100000) / 12), pensionMax, budget);
+    pensionRec = paRecovery;
+    const rem = Math.max(0, budget - pensionRec);
+    isaRec = Math.min(rem, isaMax);
+    otherRec = Math.max(0, rem - isaRec);
+    rationale = "Pension maxed first to recover Personal Allowance (escape 60% trap), then ISA, then GIA.";
+  } else if (gross > TAX.basicRateLimit) {
+    const matchFloor = Math.min(Math.round(gross * (p.employerMatch || 0) / 100 / 12), budget);
+    const dropToBasic = Math.min(Math.round((gross - TAX.basicRateLimit) / 12), pensionMax);
+    pensionRec = Math.min(Math.max(matchFloor, dropToBasic), budget, pensionMax);
+    const rem = Math.max(0, budget - pensionRec);
+    isaRec = Math.min(rem, isaMax);
+    otherRec = Math.max(0, rem - isaRec);
+    rationale = "Pension sized to reclaim 40% relief (drop income to basic rate band), then ISA, then GIA.";
+  } else {
+    const matchFloor = Math.min(Math.round(gross * (p.employerMatch || 0) / 100 / 12), budget);
+    isaRec = Math.min(Math.max(Math.round(budget * 0.6), 0), isaMax, budget);
+    pensionRec = Math.min(Math.max(matchFloor, Math.round(budget * 0.35)), pensionMax, Math.max(0, budget - isaRec));
+    otherRec = Math.max(0, budget - isaRec - pensionRec);
+    rationale = "ISA prioritised for flexibility and tax-free growth. Pension covers employer match minimum. Remainder to GIA.";
+  }
+  return { pensionRec, isaRec, otherRec, rationale, budget };
+}
+
+// ─── Tooltip ─────────────────────────────────────────────────────────────────
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="custom-tooltip">
+      <div className="tt-label">AGE {label}</div>
+      {payload.map((row) => (
+        <div key={row.dataKey} className="tt-row">
+          <span style={{ color: row.color }}>{row.name}</span>
+          <span style={{ color: row.color }}>{fmt(row.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [preset, setPreset] = useState("balanced");
+  const [view, setView] = useState("all");
+  const [adjustForInflation, setAdjustForInflation] = useState(true);
+
+  const defaultCosts = Object.fromEntries(COST_CATS.map((c) => [c.key, c.default]));
+  const [costs, setCosts] = useState(defaultCosts);
+
+  const [p, setP] = useState({
+    currentAge: 30, retirementAge: 57, grossSalary: 65000,
+    isaBalance: 20000, pensionBalance: 50000, otherBalance: 10000,
+    isaContrib: 1000, pensionContrib: 500, otherContrib: 200,
+    employerMatch: 5,
+    isaReturn: 6.5, pensionReturn: 6.0, otherReturn: 5.0,
+    inflation: 2.5, salarySacrifice: true,
+    retireCostRatio: 70, // % of current living costs expected in retirement
+  });
+
+  const up = (key) => (e) => {
+    const isCheck = e.target.type === "checkbox";
+    const raw = isCheck ? e.target.checked : e.target.value;
+    const val = isCheck ? raw : (isNaN(parseFloat(raw)) ? raw : parseFloat(raw));
+    setP((prev) => ({ ...prev, [key]: val }));
+  };
+  const upCost = (key) => (e) => {
+    const val = parseFloat(e.target.value) || 0;
+    setCosts((prev) => ({ ...prev, [key]: val }));
+  };
+
+  const applyPreset = (key) => {
+    setPreset(key);
+    if (key !== "custom") {
+      const r = PRESETS[key].returns;
+      setP((prev) => ({ ...prev, isaReturn: r.isa, pensionReturn: r.pension, otherReturn: r.other }));
+    }
+  };
+
+  const monthlyLiving = useMemo(() => Object.values(costs).reduce((a, b) => a + b, 0), [costs]);
+  const retireMonthlyLiving = useMemo(() => monthlyLiving * (p.retireCostRatio / 100), [monthlyLiving, p.retireCostRatio]);
+
+  const data = useMemo(() => generateProjection(p, costs, adjustForInflation), [p, costs, adjustForInflation]);
+
+  const { tax: itax, ni, band } = useMemo(() => calcIncomeTax(p.grossSalary), [p.grossSalary]);
+  const netMonthly = (p.grossSalary - itax - ni) / 12;
+  const totalInvestMonthly = p.isaContrib + p.pensionContrib + p.otherContrib;
+  const monthlySurplus = netMonthly - monthlyLiving - totalInvestMonthly;
+
+  const pensionRelief = useMemo(() => calcPensionRelief(p.pensionContrib, p.grossSalary, p.salarySacrifice), [p]);
+  const taxInfo = useMemo(() => getTaxTips(p, monthlySurplus), [p, monthlySurplus]);
+  const investableSurplus = Math.max(0, netMonthly - monthlyLiving);
+  const optAlloc = useMemo(() => getOptimalAllocation(p, Math.max(0, netMonthly - monthlyLiving)), [p, netMonthly, monthlyLiving]);
+
+  const [optimised, setOptimised] = useState(null);
+  const applyOptimal = () => {
+    const prev = { isa: p.isaContrib, pension: p.pensionContrib, other: p.otherContrib };
+    setP((cur) => ({ ...cur, isaContrib: optAlloc.isaRec, pensionContrib: optAlloc.pensionRec, otherContrib: optAlloc.otherRec }));
+    setOptimised({ prev, next: { isa: optAlloc.isaRec, pension: optAlloc.pensionRec, other: optAlloc.otherRec }, rationale: optAlloc.rationale });
+  };
+
+  const retirementPoint = data.find((d) => d.age === p.retirementAge) || data[data.length - 1];
+  const fireNumber = retirementPoint ? retirementPoint.total : 0;
+  const fireOk = retirementPoint && retirementPoint.surplus !== null && retirementPoint.surplus >= 0;
+
+  // FIRE sufficiency: does 4% rule cover retirement living costs?
+  const fireTarget = retireMonthlyLiving * 12 / 0.04;
+
+  const isaShare = totalInvestMonthly > 0 ? (p.isaContrib / totalInvestMonthly) * 100 : 0;
+  const penShare = totalInvestMonthly > 0 ? (p.pensionContrib / totalInvestMonthly) * 100 : 0;
+
+  // spend bar widths
+  const totalOutgoing = monthlyLiving + totalInvestMonthly;
+  const livingPct = totalOutgoing > 0 ? Math.min(100, (monthlyLiving / netMonthly) * 100) : 0;
+  const investPct = totalOutgoing > 0 ? Math.min(100 - livingPct, (totalInvestMonthly / netMonthly) * 100) : 0;
+  const surplusPct = Math.max(0, 100 - livingPct - investPct);
+
+  const lines = view === "all"
+    ? [
+        { key: "total",   color: "var(--total)",   name: "Total" },
+        { key: "isa",     color: "var(--isa)",     name: "ISA" },
+        { key: "pension", color: "var(--pension)", name: "Pension" },
+        { key: "other",   color: "var(--other)",   name: "GIA" },
+      ]
+    : view === "income"
+    ? [
+        { key: "netAnnualIncome", color: "var(--green)", name: "Net Income" },
+        { key: "livingCosts",     color: "var(--red)",   name: "Living Costs" },
+        { key: "surplus",         color: "var(--isa)",   name: "Surplus" },
+        { key: "taxInRetirement", color: "var(--amber)", name: "Tax" },
+      ]
+    : [{ key: view, color: `var(--${view})`, name: view.toUpperCase() }];
+
+  return (
+    <>
+      <div className="app">
+        {/* Header */}
+        <div className="header">
+          <div className="header-left">
+            <h1>UK Wealth <span>Simulator</span></h1>
+            <p>ISA · Pension · FIRE · Tax · Living Costs · 2024/25</p>
+          </div>
+          <div className={`fire-badge ${!fireOk ? "warning" : ""}`}>
+            <strong>{fmt(fireNumber)}</strong>
+            {fireOk
+              ? `FIRE at ${p.retirementAge} · +${fmt(retirementPoint.surplus)}/yr surplus`
+              : `⚠️ FIRE gap — need ${fmt(fireTarget)} · have ${fmt(fireNumber)}`}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="stats">
+          <div className="stat">
+            <div className="stat-label">Portfolio at FIRE</div>
+            <div className="stat-val col-green">{fmt(fireNumber)}</div>
+            <div className="stat-sub">Target: {fmt(fireTarget)} ({pct(fireNumber / fireTarget * 100)})</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">Net Take-Home</div>
+            <div className="stat-val col-isa">{fmt(netMonthly)}/mo</div>
+            <div className="stat-sub">After IT {fmt(itax / 12)}/mo + NI {fmt(ni / 12)}/mo</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">Living Costs</div>
+            <div className="stat-val col-amber">{fmt(monthlyLiving)}/mo</div>
+            <div className="stat-sub">Retire: {fmt(retireMonthlyLiving)}/mo ({p.retireCostRatio}% of today)</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">Investing</div>
+            <div className="stat-val col-pension">{fmt(totalInvestMonthly)}/mo</div>
+            <div className="stat-sub">ISA + Pension + GIA contributions</div>
+          </div>
+          <div className={`stat ${monthlySurplus >= 0 ? "surplus-pos" : "surplus-neg"}`}>
+            <div className="stat-label">Monthly Surplus</div>
+            <div className={`stat-val ${monthlySurplus >= 0 ? "col-green" : "col-red"}`}>{fmt(monthlySurplus)}/mo</div>
+            <div className="stat-sub">{monthlySurplus >= 0 ? "After all costs & investing" : "⚠️ Spending exceeds income"}</div>
+          </div>
+        </div>
+
+        <div className="main">
+          {/* ── Sidebar ── */}
+          <div className="sidebar">
+            {/* Presets */}
+            <div className="panel">
+              <div className="panel-title">Portfolio Preset</div>
+              <div className="presets">
+                {Object.entries(PRESETS).map(([k, v]) => (
+                  <button key={k} className={`preset-btn ${preset === k ? "active" : ""}`} onClick={() => applyPreset(k)}>
+                    {v.emoji} {v.name}
+                  </button>
+                ))}
+              </div>
+              <div className="preset-desc">{PRESETS[preset].desc}</div>
+            </div>
+
+            {/* Personal */}
+            <div className="panel">
+              <div className="panel-title">Personal Details</div>
+              <div className="field">
+                <label>Gross Annual Salary (£)</label>
+                <input type="number" value={p.grossSalary} onChange={up("grossSalary")} />
+              </div>
+              <div className="field">
+                <label>Current Age</label>
+                <div className="range-row">
+                  <input type="range" min="18" max="70" value={p.currentAge} onChange={up("currentAge")} />
+                  <span className="range-val">{p.currentAge}</span>
+                </div>
+              </div>
+              <div className="field">
+                <label>Target Retirement Age</label>
+                <div className="range-row">
+                  <input type="range" min={p.currentAge + 1} max="80" value={p.retirementAge} onChange={up("retirementAge")} />
+                  <span className="range-val">{p.retirementAge}</span>
+                </div>
+              </div>
+              <div className="uk-note">
+                <strong>UK:</strong> Pension access from age 57 (2028). State pension £{Math.round(TAX.statePensionAnnual).toLocaleString()}/yr at 66, included in projection.
+              </div>
+            </div>
+
+            {/* Living Costs */}
+            <div className="panel">
+              <div className="panel-title">Monthly Living Costs</div>
+              {COST_CATS.map((c) => (
+                <div className="cost-row" key={c.key}>
+                  <div className="cost-label"><span className="cost-icon">{c.icon}</span>{c.label}</div>
+                  <input
+                    type="number" min="0" value={costs[c.key]}
+                    onChange={upCost(c.key)}
+                    style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)", padding: "0.3rem 0.5rem", fontFamily: "DM Mono, monospace", fontSize: "0.8rem", outline: "none", width: "90px", textAlign: "right" }}
+                  />
+                </div>
+              ))}
+              <div className="cost-total-row">
+                <span className="cost-total-label">Total / month</span>
+                <span className="cost-total-val col-amber">{fmt(monthlyLiving)}</span>
+              </div>
+              {/* Cashflow bar */}
+              <div className="cashflow-bar">
+                <div style={{ width: `${livingPct}%`, background: "var(--red)", opacity: 0.8 }} />
+                <div style={{ width: `${investPct}%`, background: "var(--pension)", opacity: 0.9 }} />
+                <div style={{ width: `${surplusPct}%`, background: "var(--green)", opacity: 0.8 }} />
+              </div>
+              <div className="surplus-label">
+                <span style={{ color: "var(--red)" }}>🔴 costs {pct(livingPct)}</span>
+                <span style={{ color: "var(--pension)" }}>🟡 invest {pct(investPct)}</span>
+                <span style={{ color: "var(--green)" }}>🟢 surplus {pct(surplusPct)}</span>
+              </div>
+              <hr className="divider" />
+              <div className="field">
+                <label>Retirement Costs (% of today's)</label>
+                <div className="range-row">
+                  <input type="range" min="30" max="120" step="5" value={p.retireCostRatio} onChange={up("retireCostRatio")} />
+                  <span className="range-val">{p.retireCostRatio}%</span>
+                </div>
+              </div>
+              <div style={{ fontSize: "0.63rem", color: "var(--muted)", lineHeight: 1.6 }}>
+                Estimated retirement spending: <span style={{ color: "var(--accent)" }}>{fmt(retireMonthlyLiving)}/mo</span>. Typical range: 60–80% of working life costs (no commuting, no mortgage if paid off).
+              </div>
+            </div>
+
+            {/* ── Optimise Button ── */}
+            <div className="optimise-btn-wrap">
+              <button className="optimise-btn" onClick={applyOptimal}>
+                <span className="btn-icon">⚡</span>
+                Auto-Optimise Contributions for Tax
+              </button>
+              {optimised && (
+                <div className="optimise-applied">
+                  <strong>✅ Optimised — based on {fmt(investableSurplus)}/mo available after living costs</strong>
+                  ISA {fmt(optimised.prev.isa)} → <span style={{color:"var(--isa)"}}>{fmt(optimised.next.isa)}</span>/mo &nbsp;·&nbsp;
+                  Pension {fmt(optimised.prev.pension)} → <span style={{color:"var(--pension)"}}>{fmt(optimised.next.pension)}</span>/mo &nbsp;·&nbsp;
+                  GIA {fmt(optimised.prev.other)} → <span style={{color:"var(--other)"}}>{fmt(optimised.next.other)}</span>/mo
+                  <div style={{marginTop:"0.4rem", color:"var(--muted)", fontSize:"0.63rem"}}>{optimised.rationale}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Balances */}
+            <div className="panel">
+              <div className="panel-title">Current Balances</div>
+              <div className="field"><label>ISA (£)</label><input type="number" value={p.isaBalance} onChange={up("isaBalance")} /></div>
+              <div className="field"><label>Pension (£)</label><input type="number" value={p.pensionBalance} onChange={up("pensionBalance")} /></div>
+              <div className="field"><label>GIA / Other (£)</label><input type="number" value={p.otherBalance} onChange={up("otherBalance")} /></div>
+            </div>
+
+            {/* Contributions */}
+            <div className="panel">
+              <div className="panel-title">Monthly Contributions</div>
+              <div className="alloc-bar">
+                <div className="alloc-seg" style={{ width: `${isaShare}%`, background: "var(--isa)" }} />
+                <div className="alloc-seg" style={{ width: `${penShare}%`, background: "var(--pension)" }} />
+                <div className="alloc-seg" style={{ width: `${100 - isaShare - penShare}%`, background: "var(--other)" }} />
+              </div>
+              <div className="field"><label>ISA (£/mo)</label><input type="number" value={p.isaContrib} onChange={up("isaContrib")} /></div>
+              <div className="field"><label>Pension Employee (£/mo)</label><input type="number" value={p.pensionContrib} onChange={up("pensionContrib")} /></div>
+              <div className="field">
+                <label>Employer Match (%)</label>
+                <div className="range-row">
+                  <input type="range" min="0" max="15" step="0.5" value={p.employerMatch} onChange={up("employerMatch")} />
+                  <span className="range-val">{p.employerMatch}%</span>
+                </div>
+              </div>
+              <div className="field"><label>GIA / Other (£/mo)</label><input type="number" value={p.otherContrib} onChange={up("otherContrib")} /></div>
+              <div className="toggle-row" style={{ marginTop: "0.5rem" }}>
+                <label className="toggle">
+                  <input type="checkbox" checked={p.salarySacrifice} onChange={up("salarySacrifice")} />
+                  <span className="toggle-slider" />
+                </label>
+                Salary sacrifice pension
+              </div>
+            </div>
+
+            {/* Returns */}
+            <div className="panel">
+              <div className="panel-title">Expected Annual Returns</div>
+              {[["isa","ISA"],["pension","Pension"],["other","GIA / Other"]].map(([k, label]) => (
+                <div className="field" key={k}>
+                  <label>{label} (%/yr)</label>
+                  <div className="range-row">
+                    <input type="range" min="0" max="15" step="0.1" value={p[`${k}Return`]}
+                      onChange={(e) => { up(`${k}Return`)(e); setPreset("custom"); }} />
+                    <span className="range-val">{pct(p[`${k}Return`])}</span>
+                  </div>
+                </div>
+              ))}
+              <hr className="divider" />
+              <div className="field">
+                <label>Inflation (%/yr)</label>
+                <div className="range-row">
+                  <input type="range" min="0" max="8" step="0.1" value={p.inflation} onChange={up("inflation")} />
+                  <span className="range-val">{pct(p.inflation)}</span>
+                </div>
+              </div>
+              <div className="toggle-row">
+                <label className="toggle">
+                  <input type="checkbox" checked={adjustForInflation} onChange={(e) => setAdjustForInflation(e.target.checked)} />
+                  <span className="toggle-slider" />
+                </label>
+                Today's money (real terms)
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right Panel ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+            {/* Chart */}
+            <div className="chart-wrap">
+              <div className="chart-header">
+                <div>
+                  <div className="panel-title" style={{ marginBottom: 0 }}>Wealth & Retirement Cash Flow</div>
+                  <div style={{ fontSize: "0.6rem", color: "var(--muted)", marginTop: "0.2rem" }}>
+                    {adjustForInflation ? "Inflation-adjusted · today's £" : "Nominal"} · 4% SWR · living costs modelled
+                  </div>
+                </div>
+                <div className="view-tabs">
+                  {[["all","ALL"],["isa","ISA"],["pension","PENSION"],["other","GIA"],["income","CASH FLOW"]].map(([v, label]) => (
+                    <button key={v} className={`tab ${view === v ? "active" : ""}`} onClick={() => setView(v)}>{label}</button>
+                  ))}
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={350}>
+                <LineChart data={data} margin={{ top: 5, right: 10, left: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1a2030" vertical={false} />
+                  <XAxis dataKey="age" stroke="#6a7590" tick={{ fontSize: 10, fontFamily: "DM Mono" }} tickLine={false} />
+                  <YAxis stroke="#6a7590" tick={{ fontSize: 10, fontFamily: "DM Mono" }} tickLine={false} tickFormatter={fmt} width={68} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: "0.65rem", fontFamily: "DM Mono" }} />
+                  <ReferenceLine x={p.retirementAge} stroke="var(--accent)" strokeDasharray="4 3"
+                    label={{ value: "FIRE 🎯", fill: "var(--accent)", fontSize: 9, fontFamily: "DM Mono" }} />
+                  <ReferenceLine x={66} stroke="var(--muted)" strokeDasharray="2 4"
+                    label={{ value: "State Pension", fill: "var(--muted)", fontSize: 9, fontFamily: "DM Mono" }} />
+                  {view === "income" && (
+                    <ReferenceLine y={0} stroke="var(--red)" strokeDasharray="2 2" />
+                  )}
+                  {lines.map((l) => (
+                    <Line key={l.key} type="monotone" dataKey={l.key} stroke={l.color} name={l.name}
+                      dot={false} strokeWidth={l.key === "total" || l.key === "netAnnualIncome" || l.key === "surplus" ? 2.5 : 1.5} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="data-source">Switch to <strong style={{color:"var(--accent)"}}>CASH FLOW</strong> tab to see retirement income vs living costs vs tax · Live prices via <span>Yahoo Finance</span> (integration ready)</div>
+            </div>
+
+            {/* Tax Analysis */}
+            <div className="chart-wrap">
+              <div className="panel-title">Income Tax & Allocation Analysis · 2024/25</div>
+              <div className="tax-grid">
+                <div className="tax-card">
+                  <div className="tax-card-label">Income Tax</div>
+                  <div className="tax-card-val col-red">{fmt(itax)}/yr</div>
+                  <div className="tax-card-sub">Band: {band}<br />Eff. rate: {pct(itax / Math.max(p.grossSalary, 1) * 100)}</div>
+                </div>
+                <div className="tax-card">
+                  <div className="tax-card-label">National Insurance</div>
+                  <div className="tax-card-val col-amber">{fmt(ni)}/yr</div>
+                  <div className="tax-card-sub">Combined burden: {fmt(itax + ni)}/yr<br />Marginal NI: {p.grossSalary > TAX.niPrimary2 ? "2%" : p.grossSalary > TAX.niPrimary1 ? "8%" : "0%"}</div>
+                </div>
+                <div className="tax-card">
+                  <div className="tax-card-label">Pension Relief (est.)</div>
+                  <div className="tax-card-val col-green">{fmt(pensionRelief.relief)}/yr</div>
+                  <div className="tax-card-sub">Net cost: {fmt(pensionRelief.effectiveCost)}/yr<br />{p.salarySacrifice ? "Salary sacrifice (NI incl.)" : "Relief at source"}</div>
+                </div>
+                <div className="tax-card">
+                  <div className="tax-card-label">Optimal Allocation</div>
+                  <div className="tax-card-val col-pension">{fmt(optAlloc.pensionRec)}/mo pension</div>
+                  <div className="tax-card-sub">ISA: {fmt(optAlloc.isaRec)}/mo · GIA: {fmt(optAlloc.otherRec)}/mo<br />Tuned for {band}</div>
+                </div>
+              </div>
+              <div className="tips-list">
+                {taxInfo.tips.length > 0
+                  ? taxInfo.tips.map((t, i) => (
+                      <div key={i} className={`tip-card ${t.type}`}>
+                        <div className="tip-title">{t.title}</div>
+                        <div className="tip-text">{t.text}</div>
+                      </div>
+                    ))
+                  : (
+                    <div className="tip-card">
+                      <div className="tip-title">✅ Looking Good</div>
+                      <div className="tip-text">Cash flow is positive, allowances are within limits, and your allocation looks tax-efficient. Review annually as your salary and circumstances change.</div>
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+
+            {/* Milestones table */}
+            <div className="chart-wrap">
+              <div className="panel-title">Key Milestones</div>
+              <table>
+                <thead>
+                  <tr>
+                    {["Age","Year","ISA","Pension","GIA","Total","Net Income","Living Costs","Surplus/Deficit"].map((h) => <th key={h}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data
+                    .filter((d, i) => i % 5 === 0 || d.age === p.retirementAge || d.age === 66)
+                    .slice(0, 14)
+                    .map((row) => {
+                      const isFireAge = row.age === p.retirementAge;
+                      const isStateAge = row.age === 66;
+                      const inRetire = row.age >= p.retirementAge;
+                      const surplusColor = row.surplus >= 0 ? "var(--green)" : "var(--red)";
+                      return (
+                        <tr key={row.age} style={{ background: isFireAge ? "#1a180a" : isStateAge ? "#0e1a12" : "transparent" }}>
+                          <td style={{ color: isFireAge ? "var(--accent)" : isStateAge ? "var(--green)" : "var(--text)" }}>
+                            {row.age}{isFireAge ? " 🎯" : isStateAge ? " 🏛" : ""}
+                          </td>
+                          <td style={{ color: "var(--muted)" }}>{row.year}</td>
+                          <td className="col-isa">{fmt(row.isa)}</td>
+                          <td className="col-pension">{fmt(row.pension)}</td>
+                          <td className="col-other">{fmt(row.other)}</td>
+                          <td className="col-green" style={{ fontWeight: 500 }}>{fmt(row.total)}</td>
+                          <td style={{ color: "var(--text)" }}>{inRetire ? fmt(row.netAnnualIncome) : "—"}</td>
+                          <td className="col-amber">{inRetire ? fmt(row.livingCosts) : "—"}</td>
+                          <td style={{ color: inRetire ? surplusColor : "var(--muted)" }}>
+                            {inRetire ? `${row.surplus >= 0 ? "+" : ""}${fmt(row.surplus)}` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Vehicles */}
+            <div className="chart-wrap">
+              <div className="panel-title">UK Investment Vehicles</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", fontSize: "0.7rem", color: "var(--muted)", lineHeight: 1.7 }}>
+                <div>
+                  <div style={{ color: "var(--isa)", marginBottom: "0.3rem", fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>📦 ISA</div>
+                  £20k/yr. Zero CGT & income tax. Flexible access. First port of call after employer match.
+                </div>
+                <div>
+                  <div style={{ color: "var(--pension)", marginBottom: "0.3rem", fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>🏛️ Pension</div>
+                  £60k/yr. 20–45% relief. NI saving via salary sacrifice. Access from 57 (2028). 25% tax-free lump sum. State pension at 66.
+                </div>
+                <div>
+                  <div style={{ color: "var(--other)", marginBottom: "0.3rem", fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>📊 GIA</div>
+                  No limits. CGT £3k/yr. Dividends £500/yr. Use Bed &amp; ISA each April. Last priority after ISA &amp; pension.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+
+const domRoot = ReactDOM.createRoot(document.getElementById("root"));
+domRoot.render(React.createElement(App));
+  </script>
+</body>
+</html>
